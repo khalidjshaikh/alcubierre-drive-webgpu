@@ -13,23 +13,18 @@ import {
 } from "./warpField";
 
 const GRID_SIZE = 140;
-const GRID_SEGMENTS = 200;
 const SNAP = 5;
 
 export class WarpGrid {
-  readonly mesh: Mesh;
+  private mesh: Mesh;
+  private readonly scene: Scene;
   private readonly material: ShaderMaterial;
   private readonly params: WarpParams;
+  private appliedResolution = -1;
 
   constructor(scene: Scene, params: WarpParams, useWebGPU: boolean) {
+    this.scene = scene;
     this.params = params;
-
-    this.mesh = CreateGround(
-      "warpGrid",
-      { width: GRID_SIZE, height: GRID_SIZE, subdivisionsX: GRID_SEGMENTS, subdivisionsY: GRID_SEGMENTS },
-      scene,
-    );
-    this.mesh.isPickable = false;
 
     this.material = new ShaderMaterial(
       "warpGridMat",
@@ -47,7 +42,32 @@ export class WarpGrid {
     this.material.backFaceCulling = true;
     this.material.alphaMode = 2; // ALPHA_COMBINE
     this.material.disableDepthWrite = true;
-    this.mesh.material = this.material;
+
+    this.mesh = this.build(params.resolution);
+  }
+
+  private build(resolution: number): Mesh {
+    const mesh = CreateGround(
+      "warpGrid",
+      { width: GRID_SIZE, height: GRID_SIZE, subdivisionsX: resolution, subdivisionsY: resolution },
+      this.scene,
+    );
+    mesh.isPickable = false;
+    mesh.material = this.material;
+    this.appliedResolution = resolution;
+    return mesh;
+  }
+
+  private rebuild(resolution: number): void {
+    const positionX = this.mesh.position.x;
+    this.mesh.dispose();
+    this.mesh = this.build(resolution);
+    this.mesh.position.x = positionX;
+  }
+
+  /** World-space spacing between adjacent mesh vertices. */
+  get cellSize(): number {
+    return GRID_SIZE / this.appliedResolution;
   }
 
   setVisible(visible: boolean): void {
@@ -56,6 +76,10 @@ export class WarpGrid {
 
   /** Advance the grid so it always spans the region around the bubble. */
   update(bubbleWorldX: number): void {
+    if (this.params.resolution !== this.appliedResolution) {
+      this.rebuild(Math.max(2, Math.round(this.params.resolution)));
+    }
+
     const snapped = Math.round(bubbleWorldX / SNAP) * SNAP;
     this.mesh.position.x = snapped;
 
@@ -65,5 +89,7 @@ export class WarpGrid {
     u.setFloat("bubbleRadius", this.params.bubbleRadius);
     u.setFloat("sigma", this.params.sigma);
     u.setFloat("amplitude", this.params.amplitude);
+    u.setFloat("gridOriginX", snapped);
+    u.setFloat("cellSize", this.cellSize);
   }
 }

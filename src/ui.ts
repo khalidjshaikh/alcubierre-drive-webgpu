@@ -18,10 +18,14 @@ function bindRange(
   params: WarpParams,
   key: keyof WarpParams,
   digits: number,
+  format?: (value: number) => string,
 ): void {
   const input = el<HTMLInputElement>(id);
   const out = el<HTMLOutputElement>(`${id}-out`);
-  const render = () => (out.textContent = Number(params[key]).toFixed(digits));
+  const render = () => {
+    const value = Number(params[key]);
+    out.textContent = format ? format(value) : value.toFixed(digits);
+  };
   input.value = String(params[key]);
   render();
   input.addEventListener("input", () => {
@@ -35,6 +39,7 @@ export function setupUi(params: WarpParams, toggles: Toggles, onChange: () => vo
   bindRange("radius", params, "bubbleRadius", 2);
   bindRange("sigma", params, "sigma", 2);
   bindRange("amplitude", params, "amplitude", 2);
+  bindRange("resolution", params, "resolution", 0, (v) => `${Math.round(v)}\u00b2`);
 
   const bindToggle = (id: string, key: keyof Toggles) => {
     const input = el<HTMLInputElement>(id);

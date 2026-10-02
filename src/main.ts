@@ -20,6 +20,7 @@ const params: WarpParams = {
   bubbleRadius: 2.4,
   sigma: 1.6,
   amplitude: 1.4,
+  resolution: 120,
 };
 
 const toggles: Toggles = {
